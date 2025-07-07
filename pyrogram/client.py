@@ -366,6 +366,8 @@ class Client(Methods):
 
         self.me: Optional[User] = None
 
+        self.exported_authes = {}
+
         self.message_cache = Cache(self.max_message_cache_size)
         self.business_user_connection_cache = Cache(
             self.max_business_user_connection_cache_size
@@ -1295,10 +1297,14 @@ class Client(Methods):
             try:
                 await session.start()
 
-                if dc_id != await self.storage.dc_id():
+                if dc_id not in self.exported_authes:
                     exported_auth = await self.invoke(
                         raw.functions.auth.ExportAuthorization(dc_id=dc_id)
                     )
+                    self.exported_authes[dc_id] = exported_auth
+
+                else:
+                    exported_auth = self.exported_authes[dc_id]
 
                     await session.invoke(
                         raw.functions.auth.ImportAuthorization(
