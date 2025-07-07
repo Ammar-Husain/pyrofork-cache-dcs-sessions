@@ -1306,10 +1306,14 @@ class Client(Methods):
                                 id=exported_auth.id, bytes=exported_auth.bytes
                             )
                         )
+
+                        print(f"New session for dc{dc_id} has been added")
                         self.dcs_sessions[dc_id] = session
 
                     else:
+                        print(f"Using existing session for dc{dc_id}")
                         session = self.dcs_sessions[dc_id]
+                        await session.start()
 
                 else:
                     session = Session(
@@ -1321,6 +1325,7 @@ class Client(Methods):
                     )
 
                     await session.start()
+                    print(f"the file in dc{dc_id} just like the account")
 
                 r = await session.invoke(
                     raw.functions.upload.GetFile(
