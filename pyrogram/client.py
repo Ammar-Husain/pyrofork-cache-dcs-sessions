@@ -1285,6 +1285,7 @@ class Client(Methods):
             try:
                 if dc_id != await self.storage.dc_id():
                     if dc_id not in self.dcs_sessions:
+                        # this is first file part from this dc
                         session = Session(
                             self,
                             dc_id,
@@ -1306,16 +1307,16 @@ class Client(Methods):
                                 id=exported_auth.id, bytes=exported_auth.bytes
                             )
                         )
-
-                        print(f"New session for dc{dc_id} has been added")
+                        # save it for future
                         self.dcs_sessions[dc_id] = session
 
                     else:
-                        print(f"Using existing session for dc{dc_id}")
+                        # a session for this dc exist
                         session = self.dcs_sessions[dc_id]
                         await session.start()
 
                 else:
+                    # the file is in the same dc as the account
                     session = Session(
                         self,
                         dc_id,
@@ -1325,7 +1326,6 @@ class Client(Methods):
                     )
 
                     await session.start()
-                    print(f"the file in dc{dc_id} just like the account")
 
                 r = await session.invoke(
                     raw.functions.upload.GetFile(
