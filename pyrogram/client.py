@@ -366,7 +366,7 @@ class Client(Methods):
 
         self.me: Optional[User] = None
 
-        self.exported_authes = {}
+        self.dcs_sessions = {}
 
         self.message_cache = Cache(self.max_message_cache_size)
         self.business_user_connection_cache = Cache(
@@ -1282,35 +1282,45 @@ class Client(Methods):
 
             dc_id = file_id.dc_id
 
-            session = Session(
-                self,
-                dc_id,
-                (
-                    await Auth(self, dc_id, await self.storage.test_mode()).create()
-                    if dc_id != await self.storage.dc_id()
-                    else await self.storage.auth_key()
-                ),
-                await self.storage.test_mode(),
-                is_media=True,
-            )
-
             try:
-                await session.start()
+                if dc_id != await self.storage.dc_id():
+                    if dc_id not in self.dcs_sessions:
+                        session = Session(
+                            self,
+                            dc_id,
+                            (
+                                await Auth(
+                                    self, dc_id, await self.storage.test_mode()
+                                ).create()
+                            ),
+                            await self.storage.test_mode(),
+                            is_media=True,
+                        )
+                        exported_auth = await self.invoke(
+                            raw.functions.auth.ExportAuthorization(dc_id=dc_id)
+                        )
 
-                if dc_id not in self.exported_authes:
-                    exported_auth = await self.invoke(
-                        raw.functions.auth.ExportAuthorization(dc_id=dc_id)
-                    )
-                    self.exported_authes[dc_id] = exported_auth
+                        await session.start()
+                        await session.invoke(
+                            raw.functions.auth.ImportAuthorization(
+                                id=exported_auth.id, bytes=exported_auth.bytes
+                            )
+                        )
+                        self.dcs_sessions[dc_id] = session
+
+                    else:
+                        session = self.dcs_sessions[dc_id]
 
                 else:
-                    exported_auth = self.exported_authes[dc_id]
-
-                    await session.invoke(
-                        raw.functions.auth.ImportAuthorization(
-                            id=exported_auth.id, bytes=exported_auth.bytes
-                        )
+                    session = Session(
+                        self,
+                        dc_id,
+                        await self.storage.auth_key(),
+                        await self.storage.test_mode(),
+                        is_media=True,
                     )
+
+                    await session.start()
 
                 r = await session.invoke(
                     raw.functions.upload.GetFile(
